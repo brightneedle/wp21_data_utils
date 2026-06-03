@@ -6,7 +6,7 @@ import awkward as ak
 from fastml.utils.cells import get_cell_vectors
 
 
-def vector_to_tower(
+def vectors_to_image(
     vectors,
     eta_edges=np.linspace(-2.5, 2.5, 51),
     phi_edges=np.linspace(-np.pi, np.pi, 65),
@@ -29,11 +29,11 @@ def vector_to_tower(
     return np.expand_dims(towers, axis=-1)
 
 
-def cells_to_towers(cells, Et_key="cell_et"):
+def cells_to_image(cells, Et_key="cell_et"):
     cell_vectors = get_cell_vectors(cells, Et_key)
     towers = np.concatenate(
         [
-            vector_to_tower(cell_vectors[cell_vectors.layer == layer])
+            vectors_to_image(cell_vectors[cell_vectors.layer == layer])
             for layer in range(6)
         ],
         axis=-1,
@@ -67,7 +67,7 @@ def get_tower_eta(X):
     return (eta_idxs - np.median(eta_idxs)) * 0.1
 
 
-def tower_to_vector(X):
+def image_to_vectors(X):
     _, eta_idxs, phi_idxs, _ = np.indices(X.shape)
 
     eta = (eta_idxs - np.median(eta_idxs)) * 0.1

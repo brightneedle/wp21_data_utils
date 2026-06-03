@@ -6,49 +6,13 @@ import xgboost as xgb
 import json
 from sklearn.model_selection import train_test_split
 
+from global_data_utils.utils import delta_R_matching
+
 
 def antikt_jets(vectors, min_pt, r=0.4):
     jetdef = fastjet.JetDefinition(fastjet.antikt_algorithm, r)
     cluster = fastjet.ClusterSequence(vectors, jetdef)
     return cluster.inclusive_jets(min_pt)
-
-
-def truth_match(recon, truth, max_dR, unique_pairing=False):
-    def drop_duplicate_pairs(a, b):
-        max_b = ak.max(b, axis=-1, keepdims=True)
-        key = a * (max_b + 1) + b
-
-        order = ak.argsort(key, axis=-1)
-        a_sorted = a[order]
-        b_sorted = b[order]
-        key_sorted = key[order]
-
-        keep = ak.run_lengths(key_sorted) == 1
-
-        a_unique = a_sorted[keep]
-        b_unique = b_sorted[keep]
-
-        restore = ak.argsort(order[keep], axis=-1)
-        return a_unique[restore], b_unique[restore]
-
-    if len(truth) != len(recon):
-        raise ValueError("truth and recon jets must be same size along axis=0.")
-
-    recon_idxs, truth_idxs = ak.unzip(ak.argcartesian([recon, truth]))
-
-    dR = recon[recon_idxs].deltaR(truth[truth_idxs])
-
-    is_close = dR < max_dR
-
-    recon_idxs = recon_idxs[is_close]
-    truth_idxs = truth_idxs[is_close]
-
-    if unique_pairing:
-        recon_idxs, truth_idxs = drop_duplicate_pairs(recon_idxs, truth_idxs)
-
-    matched_truth = truth[truth_idxs]
-    matched_recon = recon[recon_idxs]
-    return matched_recon, matched_truth
 
 
 class BinnedCalibration:
@@ -82,7 +46,7 @@ class BinnedCalibration:
         self.max_dR = max_dR
 
     def fit(self, truth_jets, recon_jets):
-        matched_recon_jets, matched_truth_jets = truth_match(
+        matched_recon_jets, matched_truth_jets = delta_R_matching(
             recon_jets, truth_jets, max_dR=self.max_dR, unique_pairing=True
         )
 
@@ -169,18 +133,21 @@ class BinnedCalibration:
         return self
 
 
-class UnbinnedCalibration:
+class BDTCalibration:
     def __init__(
         self,
         max_dR=0.3,
         hyperparams={"n_estimators": 100, "max_depth": 3, "early_stopping_rounds": 5},
+        pt_monotonic=True,
     ):
-        self.bdt = xgb.XGBRegressor(**hyperparams)
+        self.bdt = xgb.XGBRegressor(
+            monotone_constraints=(1, 0) if pt_monotonic else (0, 0), **hyperparams
+        )
         self.max_dR = max_dR
 
     def fit(self, truth_jets, recon_jets):
-        matched_recon_jets, matched_truth_jets = truth_match(
-            recon_jets, truth_jets, max_dR=self.max_dR
+        matched_recon_jets, matched_truth_jets = delta_R_matching(
+            recon_jets, truth_jets, max_dR=self.max_dR, unique_pairing=True
         )
 
         truth_pT = ak.to_numpy(ak.flatten(matched_truth_jets.pt))
@@ -188,7 +155,7 @@ class UnbinnedCalibration:
         recon_abseta = np.abs(ak.to_numpy(ak.flatten(matched_recon_jets.eta)))
 
         X = np.stack((recon_pT, recon_abseta), axis=1)
-        y = truth_pT / recon_pT
+        y = truth_pT
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
@@ -207,11 +174,11 @@ class UnbinnedCalibration:
         if isinstance(self.bdt, xgb.Booster):
             X = xgb.DMatrix(X)
 
-        pred_sf = ak.unflatten(self.bdt.predict(X), ak.num(recon_jets))
+        pred_pt = ak.unflatten(self.bdt.predict(X), ak.num(recon_jets))
 
         scaled_recon_jets = {
             "m": recon_jets.m,
-            "pt": recon_jets.pt * pred_sf,
+            "pt": pred_pt,
             "eta": recon_jets.eta,
             "phi": recon_jets.phi,
         }

@@ -5,7 +5,7 @@ import numpy as np
 metre = 1e3
 
 
-def remove_transition(cells):
+def remove_calo_gaps(cells):
     cell_abseta = np.abs(to_3vector(cells).eta)
     psb = (cells.cell_sampling == 0) & (cell_abseta > 1.5)
     eme1 = (cells.cell_sampling == 5) & (cell_abseta < 1.5)
@@ -89,9 +89,10 @@ def to_4momentum(cells, Et_key="cell_et"):
     vectors = vector.zip(components)
     return vectors
 
-def cells_to_vectors(cells, Et_key="cell_et", central_only=True, remove_transition=True):
-    if remove_transition:
-        cells = remove_transition(cells)
+
+def cells_to_vectors(cells, Et_key="cell_et", central_only=True, remove_gaps=True):
+    if remove_gaps:
+        cells = remove_calo_gaps(cells)
 
     cell_vectors = to_4momentum(cells, Et_key=Et_key)
 
@@ -101,18 +102,3 @@ def cells_to_vectors(cells, Et_key="cell_et", central_only=True, remove_transiti
         cell_vectors = cell_vectors[central]
 
     return cell_vectors
-
-
-def unflatten(x, like):
-    out = []
-    start_idx = 0
-    for length in ak.count(like, axis=1):
-        if length > 0:
-            out.append(x[start_idx : start_idx + length])
-
-        else:
-            out.append([])
-
-        start_idx += length
-
-    return ak.Array(out)
