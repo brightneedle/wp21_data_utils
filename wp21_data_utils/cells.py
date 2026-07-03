@@ -2,8 +2,6 @@ import awkward as ak
 import vector
 import numpy as np
 
-metre = 1e3
-
 
 def remove_calo_gaps(cells):
     cell_abseta = np.abs(to_3vector(cells).eta)
@@ -64,7 +62,7 @@ def get_corrected_eta(cell_vectors):
     return cell_eta
 
 
-def to_3vector(cells):
+def to_3vector(cells, metre = 1e3):
     vectors = vector.zip(
         {
             "x": cells.cell_x / metre,
