@@ -3,22 +3,25 @@ import skimage
 import vector
 import awkward as ak
 
-from fastml.utils.cells import get_cell_vectors
+
+from wp21_data_utils.utils import pt_sort, to_jagged_array
 
 
 def vectors_to_image(
-    vectors,
-    eta_edges=np.linspace(-2.5, 2.5, 51),
-    phi_edges=np.linspace(-np.pi, np.pi, 65),
+    vectors: vector.Array,
+    eta_edges: list = np.linspace(-2.5, 2.5, 51),
+    phi_edges: list = np.linspace(-np.pi, np.pi, 65),
 ):
     tower_edges = (np.arange(1 + len(vectors)), eta_edges, phi_edges)
 
-    event_indices = ak.flatten(get_index(vectors))
+    event_indices = get_index(vectors)
+
+    flat_indices = ak.flatten(event_indices)
     flat_vectors = ak.flatten(vectors)
 
     towers = np.histogramdd(
         (
-            ak.to_numpy(event_indices),
+            ak.to_numpy(flat_indices),
             ak.to_numpy(flat_vectors.eta),
             ak.to_numpy(flat_vectors.phi),
         ),
@@ -29,11 +32,18 @@ def vectors_to_image(
     return np.expand_dims(towers, axis=-1)
 
 
-def cells_to_image(cells, Et_key="cell_et"):
-    cell_vectors = get_cell_vectors(cells, Et_key)
+def cell_vectors_to_image(
+    cell_vectors,
+    eta_edges=np.linspace(-2.5, 2.5, 51),
+    phi_edges=np.linspace(-np.pi, np.pi, 65),
+):
     towers = np.concatenate(
         [
-            vectors_to_image(cell_vectors[cell_vectors.layer == layer])
+            vectors_to_image(
+                cell_vectors[cell_vectors.layer == layer],
+                eta_edges=eta_edges,
+                phi_edges=phi_edges,
+            )
             for layer in range(6)
         ],
         axis=-1,
@@ -67,11 +77,11 @@ def get_tower_eta(X):
     return (eta_idxs - np.median(eta_idxs)) * 0.1
 
 
-def image_to_vectors(X):
+def image_to_vectors(X, deta=0.1, dphi=np.pi / 32, eta0=0, phi0=0, return_sorted=True):
     _, eta_idxs, phi_idxs, _ = np.indices(X.shape)
 
-    eta = (eta_idxs - np.median(eta_idxs)) * 0.1
-    phi = (phi_idxs - np.median(phi_idxs)) * np.pi / 32
+    eta = (eta_idxs - np.median(eta_idxs)) * deta + eta0
+    phi = (phi_idxs - np.median(phi_idxs)) * dphi + phi0
 
     vectors = vector.arr(
         {
@@ -82,7 +92,12 @@ def image_to_vectors(X):
         }
     )
 
-    return vectors
+    vectors = to_jagged_array(vectors)
+
+    if return_sorted:
+        return pt_sort(vectors)
+    else:
+        return vectors
 
 
 def get_index(vectors):

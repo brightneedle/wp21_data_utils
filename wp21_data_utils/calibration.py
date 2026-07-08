@@ -1,4 +1,3 @@
-import fastjet
 import awkward as ak
 import vector
 import numpy as np
@@ -6,13 +5,7 @@ import xgboost as xgb
 import json
 from sklearn.model_selection import train_test_split
 
-from global_data_utils.utils import delta_R_matching
-
-
-def antikt_jets(vectors, min_pt, r=0.4):
-    jetdef = fastjet.JetDefinition(fastjet.antikt_algorithm, r)
-    cluster = fastjet.ClusterSequence(vectors, jetdef)
-    return cluster.inclusive_jets(min_pt)
+from wp21_data_utils.utils import delta_R_matching
 
 
 class BinnedCalibration:
@@ -66,10 +59,6 @@ class BinnedCalibration:
             recon_abseta,
             bins=self.bins,
         )[0]
-
-        # num_empty_bins = np.sum(N ==0)
-        # if num_empty_bins>0:
-        #    raise ValueError(f"Found {num_empty_bins} empty bins! Increase bin size or use larger sample.")
 
         num_sparse_bins = np.sum(N < 10)
         if num_sparse_bins > 0:

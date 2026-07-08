@@ -49,6 +49,16 @@ def to_vector_array(array: ak.Array):
         raise ValueError("could not detect vector component keys.")
 
 
+def to_jagged_array(vectors, min_pt=1e-12):
+    mask = np.asarray(vectors.pt > min_pt)
+    counts = ak.from_numpy(np.sum(mask.reshape(mask.shape[0], -1), axis=1))
+    m = ak.unflatten(vectors.m[mask], counts)
+    pt = ak.unflatten(vectors.pt[mask], counts)
+    eta = ak.unflatten(vectors.eta[mask], counts)
+    phi = ak.unflatten(vectors.phi[mask], counts)
+    return vector.zip({"m": m, "pt": pt, "eta": eta, "phi": phi})
+
+
 def balance_weights(weights: np.ndarray, labels: np.ndarray):
     weights_ = np.asarray(weights)
     labels_ = np.asarray(labels)

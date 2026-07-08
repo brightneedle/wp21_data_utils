@@ -62,7 +62,7 @@ def get_corrected_eta(cell_vectors):
     return cell_eta
 
 
-def to_3vector(cells, metre = 1e3):
+def to_3vector(cells, metre=1e3):
     vectors = vector.zip(
         {
             "x": cells.cell_x / metre,
