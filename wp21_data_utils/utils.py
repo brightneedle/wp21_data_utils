@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import numpy as np
 import awkward as ak
 import vector
 
 
-def zero_pad(x, max_vectors):
+def zero_pad(x: ak.Array, max_vectors: int) -> np.ndarray:
     """
     Pad or clip a jagged array along axis 1 and replace missing values with 0.
 
@@ -22,7 +24,7 @@ def zero_pad(x, max_vectors):
     return ak.to_numpy(ak.fill_none(ak.pad_none(x, max_vectors, clip=True), 0))
 
 
-def pt_sort(vectors, ascending=False):
+def pt_sort(vectors: vector.Array, ascending: bool = False) -> vector.Array:
     """
     Sort per-event vectors by transverse momentum.
 
@@ -41,7 +43,9 @@ def pt_sort(vectors, ascending=False):
     return vectors[ak.argsort(vectors.rho, axis=1, ascending=ascending)]
 
 
-def pad_vectors(vectors, max_vectors, sort_first=True):
+def pad_vectors(
+    vectors: vector.Array, max_vectors: int, sort_first: bool = True
+) -> vector.Array:
     """
     Sort and zero-pad jagged four-vectors to a fixed event length.
 
@@ -73,7 +77,7 @@ def pad_vectors(vectors, max_vectors, sort_first=True):
     return padded_vectors
 
 
-def to_vector_array(array: ak.Array):
+def to_vector_array(array: ak.Array) -> vector.Array:
     """
     Convert common momentum record layouts into a vector array.
 
@@ -117,7 +121,7 @@ def to_vector_array(array: ak.Array):
         raise ValueError("could not detect vector component keys.")
 
 
-def to_jagged_array(vectors, min_pt=1e-12):
+def to_jagged_array(vectors: vector.Array, min_pt: float = 1e-12) -> vector.Array:
     """
     Convert a dense vector image or grid into a jagged vector array.
 
@@ -142,7 +146,7 @@ def to_jagged_array(vectors, min_pt=1e-12):
     return vector.zip({"m": m, "pt": pt, "eta": eta, "phi": phi})
 
 
-def balance_weights(weights: np.ndarray, labels: np.ndarray):
+def balance_weights(weights: np.ndarray, labels: np.ndarray) -> np.ndarray:
     """
     Rescale event weights so each label class has equal total weight.
 
@@ -168,7 +172,7 @@ def balance_weights(weights: np.ndarray, labels: np.ndarray):
     return weights_
 
 
-def unflatten_like(x, like):
+def unflatten_like(x: np.ndarray | ak.Array, like: ak.Array) -> ak.Array:
     """
     Rebuild a jagged array using the event lengths from another array.
 
@@ -198,7 +202,12 @@ def unflatten_like(x, like):
     return ak.Array(out)
 
 
-def delta_R_matching(recon, truth, max_dR, unique_pairing=False):
+def delta_R_matching(
+    recon: vector.Array,
+    truth: vector.Array,
+    max_dR: float,
+    unique_pairing: bool = False,
+) -> tuple[vector.Array, vector.Array]:
     """
     Match reconstructed and truth objects within a delta-R threshold.
 
@@ -225,7 +234,7 @@ def delta_R_matching(recon, truth, max_dR, unique_pairing=False):
         If ``recon`` and ``truth`` do not have the same number of events.
     """
 
-    def drop_duplicate_pairs(a, b):
+    def drop_duplicate_pairs(a: ak.Array, b: ak.Array) -> tuple[ak.Array, ak.Array]:
         max_b = ak.max(b, axis=-1, keepdims=True)
         key = a * (max_b + 1) + b
 

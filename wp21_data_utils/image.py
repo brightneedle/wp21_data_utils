@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import skimage
 import vector
@@ -9,9 +11,9 @@ from wp21_data_utils.utils import pt_sort, to_jagged_array
 
 def vectors_to_image(
     vectors: vector.Array,
-    eta_edges: list = np.linspace(-2.5, 2.5, 51),
-    phi_edges: list = np.linspace(-np.pi, np.pi, 65),
-):
+    eta_edges: np.ndarray | list[float] = np.linspace(-2.5, 2.5, 51),
+    phi_edges: np.ndarray | list[float] = np.linspace(-np.pi, np.pi, 65),
+) -> np.ndarray:
     """
     Histogram per-event vectors into eta-phi images of summed pT.
 
@@ -50,10 +52,10 @@ def vectors_to_image(
 
 
 def cell_vectors_to_image(
-    cell_vectors,
-    eta_edges=np.linspace(-2.5, 2.5, 51),
-    phi_edges=np.linspace(-np.pi, np.pi, 65),
-):
+    cell_vectors: vector.Array,
+    eta_edges: np.ndarray | list[float] = np.linspace(-2.5, 2.5, 51),
+    phi_edges: np.ndarray | list[float] = np.linspace(-np.pi, np.pi, 65),
+) -> np.ndarray:
     """
     Histogram layered cell vectors into multi-channel eta-phi images.
 
@@ -86,7 +88,7 @@ def cell_vectors_to_image(
     return towers
 
 
-def pad(x, pad_size):
+def pad(x: np.ndarray, pad_size: int) -> np.ndarray:
     """
     Pad an eta-phi image batch with zero eta padding and wrapped phi padding.
 
@@ -113,7 +115,7 @@ def pad(x, pad_size):
     return y
 
 
-def sliding_window(x, size):
+def sliding_window(x: np.ndarray, size: int) -> np.ndarray:
     """
     Build local eta-phi windows over an image batch.
 
@@ -137,7 +139,7 @@ def sliding_window(x, size):
     return windows
 
 
-def get_tower_eta(X):
+def get_tower_eta(X: np.ndarray) -> np.ndarray:
     """
     Return eta-coordinate values for each tower in an image tensor.
 
@@ -155,7 +157,14 @@ def get_tower_eta(X):
     return (eta_idxs - np.median(eta_idxs)) * 0.1
 
 
-def image_to_vectors(X, deta=0.1, dphi=np.pi / 32, eta0=0, phi0=0, return_sorted=True):
+def image_to_vectors(
+    X: np.ndarray,
+    deta: float = 0.1,
+    dphi: float = np.pi / 32,
+    eta0: float = 0,
+    phi0: float = 0,
+    return_sorted: bool = True,
+) -> vector.Array:
     """
     Convert eta-phi image pixels back into jagged vector arrays.
 
@@ -202,7 +211,7 @@ def image_to_vectors(X, deta=0.1, dphi=np.pi / 32, eta0=0, phi0=0, return_sorted
         return vectors
 
 
-def get_index(vectors):
+def get_index(vectors: vector.Array) -> ak.Array:
     """
     Return per-vector event indices for a jagged vector array.
 

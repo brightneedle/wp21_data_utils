@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import awkward as ak
 import vector
 import numpy as np
 
 
-def remove_calo_gaps(cells):
+def remove_calo_gaps(cells: ak.Array) -> ak.Array:
     """
     Remove calorimeter cells from sampling regions with known eta gaps.
 
@@ -27,7 +29,7 @@ def remove_calo_gaps(cells):
     return cells[mask]
 
 
-def get_layer(sampling):
+def get_layer(sampling: ak.Array | np.ndarray) -> ak.Array | np.ndarray:
     """
     Map ATLAS calorimeter sampling indices onto compact layer indices.
 
@@ -76,7 +78,7 @@ def get_layer(sampling):
     return output
 
 
-def get_corrected_eta(cell_vectors):
+def get_corrected_eta(cell_vectors: vector.Array) -> ak.Array:
     """
     Apply small eta corrections for selected calorimeter cell layers.
 
@@ -102,7 +104,7 @@ def get_corrected_eta(cell_vectors):
     return cell_eta
 
 
-def to_3vector(cells, metre=1e3):
+def to_3vector(cells: ak.Array, metre: float = 1e3) -> vector.Array:
     """
     Convert cell Cartesian positions into spatial vector objects.
 
@@ -130,7 +132,7 @@ def to_3vector(cells, metre=1e3):
     return vectors
 
 
-def to_4momentum(cells, Et_key="cell_et"):
+def to_4momentum(cells: ak.Array, Et_key: str = "cell_et") -> vector.Array:
     """
     Convert calorimeter cells into massless eta-phi-pT four-vectors.
 
@@ -159,7 +161,12 @@ def to_4momentum(cells, Et_key="cell_et"):
     return vectors
 
 
-def cells_to_vectors(cells, Et_key="cell_et", central_only=True, remove_gaps=True):
+def cells_to_vectors(
+    cells: ak.Array,
+    Et_key: str = "cell_et",
+    central_only: bool = True,
+    remove_gaps: bool = True,
+) -> vector.Array:
     """
     Convert raw calorimeter cell records to analysis-ready cell vectors.
 
