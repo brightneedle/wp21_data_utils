@@ -11,7 +11,7 @@ setup(
     packages=["wp21_data_utils"],
     install_requires=["fastjet", "numpy", "scikit-image", "scikit-learn", "xgboost"],
     extras_require={
-        "dev": ["pytest", "matplotlib", "pre-commit", "pyarrow"],
+        "dev": ["pytest", "pre-commit", "pyarrow"],
     },
     classifiers=[
         "Development Status :: 1 - Planning",
