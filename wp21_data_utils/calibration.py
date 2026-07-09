@@ -9,6 +9,27 @@ from wp21_data_utils.utils import delta_R_matching
 
 
 class BinnedCalibration:
+    """
+    Derive and apply binned jet transverse-momentum calibration factors.
+
+    The calibration is built from reconstructed jets matched to truth jets in
+    delta-R. For each reconstructed pT and absolute-eta bin, the class stores a
+    multiplicative scale factor that corrects reconstructed pT toward the
+    matched truth pT.
+
+    Parameters
+    ----------
+    pT_bins : array-like, optional
+        Bin edges in reconstructed transverse momentum. If omitted, a default
+        set of jet-analysis bins from 5 to 1000 is used.
+    abseta_bins : array-like, optional
+        Bin edges in reconstructed absolute pseudorapidity. If omitted, bins
+        covering ``0 <= |eta| <= 2.5`` are used.
+    max_dR : float, default=0.3
+        Maximum delta-R separation used to match reconstructed jets to truth
+        jets during fitting.
+    """
+
     def __init__(self, pT_bins=None, abseta_bins=None, max_dR=0.3):
         if pT_bins is None:
             pT_bins = np.array(
@@ -39,6 +60,23 @@ class BinnedCalibration:
         self.max_dR = max_dR
 
     def fit(self, truth_jets, recon_jets):
+        """
+        Fit calibration scale factors from truth and reconstructed jets.
+
+        Parameters
+        ----------
+        truth_jets : vector.Array or awkward.Array
+            Per-event truth jets with ``pt``, ``eta``, ``phi``, and ``m``
+            components.
+        recon_jets : vector.Array or awkward.Array
+            Per-event reconstructed jets with ``pt``, ``eta``, ``phi``, and
+            ``m`` components.
+
+        Returns
+        -------
+        BinnedCalibration
+            The fitted calibration object.
+        """
         matched_recon_jets, matched_truth_jets = delta_R_matching(
             recon_jets, truth_jets, max_dR=self.max_dR, unique_pairing=True
         )
@@ -71,6 +109,25 @@ class BinnedCalibration:
         return self
 
     def predict(self, recon_jets):
+        """
+        Apply the fitted binned pT scale factors to reconstructed jets.
+
+        Parameters
+        ----------
+        recon_jets : vector.Array or awkward.Array
+            Per-event reconstructed jets to calibrate.
+
+        Returns
+        -------
+        vector.Array
+            Jets with scaled ``pt`` and unchanged ``eta``, ``phi``, and ``m``.
+
+        Raises
+        ------
+        ValueError
+            If any jet lies outside the configured pT or absolute-eta range.
+        """
+
         def get_bin_index(arr, bins):
             bin_idxs = np.digitize(ak.flatten(arr), bins) - 1
             return np.clip(bin_idxs, 0, len(bins) - 2)
@@ -103,6 +160,14 @@ class BinnedCalibration:
         return vector.zip(scaled_recon_jets)
 
     def save(self, path):
+        """
+        Save fitted bin edges, scale factors, and matching settings as JSON.
+
+        Parameters
+        ----------
+        path : str or path-like
+            Output JSON file path.
+        """
         pT_bins, abseta_bins = self.bins
         save_dict = {
             "pT_bins": pT_bins.tolist(),
@@ -114,6 +179,19 @@ class BinnedCalibration:
             json.dump(save_dict, f)
 
     def load(self, path):
+        """
+        Load bin edges, scale factors, and matching settings from JSON.
+
+        Parameters
+        ----------
+        path : str or path-like
+            Input JSON file path.
+
+        Returns
+        -------
+        BinnedCalibration
+            The loaded calibration object.
+        """
         with open(path, "r") as f:
             load_dict = json.load(f)
         self.bins = (np.array(load_dict["pT_bins"]), np.array(load_dict["abseta_bins"]))
@@ -123,6 +201,25 @@ class BinnedCalibration:
 
 
 class BDTCalibration:
+    """
+    Train and apply an XGBoost jet transverse-momentum calibration.
+
+    The regressor learns truth pT from reconstructed pT and absolute eta after
+    delta-R matching truth and reconstructed jets. Predictions replace the jet
+    pT while preserving the original angular coordinates and mass.
+
+    Parameters
+    ----------
+    max_dR : float, default=0.3
+        Maximum delta-R separation used to match reconstructed jets to truth
+        jets during fitting.
+    hyperparams : dict, optional
+        Keyword arguments passed to ``xgboost.XGBRegressor``.
+    pt_monotonic : bool, default=True
+        If True, constrain the regressor prediction to be monotonic in
+        reconstructed pT.
+    """
+
     def __init__(
         self,
         max_dR=0.3,
@@ -135,6 +232,21 @@ class BDTCalibration:
         self.max_dR = max_dR
 
     def fit(self, truth_jets, recon_jets):
+        """
+        Fit the XGBoost calibration model from matched truth and recon jets.
+
+        Parameters
+        ----------
+        truth_jets : vector.Array or awkward.Array
+            Per-event truth jets with ``pt`` and ``eta`` components.
+        recon_jets : vector.Array or awkward.Array
+            Per-event reconstructed jets with ``pt`` and ``eta`` components.
+
+        Returns
+        -------
+        BDTCalibration
+            The fitted calibration object.
+        """
         matched_recon_jets, matched_truth_jets = delta_R_matching(
             recon_jets, truth_jets, max_dR=self.max_dR, unique_pairing=True
         )
@@ -155,6 +267,20 @@ class BDTCalibration:
         return self
 
     def predict(self, recon_jets):
+        """
+        Predict calibrated pT values for reconstructed jets.
+
+        Parameters
+        ----------
+        recon_jets : vector.Array or awkward.Array
+            Per-event reconstructed jets to calibrate.
+
+        Returns
+        -------
+        vector.Array
+            Jets with predicted ``pt`` and unchanged ``eta``, ``phi``, and
+            ``m``.
+        """
         recon_pT = ak.to_numpy(ak.flatten(recon_jets.pt))
         recon_abseta = np.abs(ak.to_numpy(ak.flatten(recon_jets.eta)))
 
@@ -175,9 +301,30 @@ class BDTCalibration:
         return vector.zip(scaled_recon_jets)
 
     def save(self, path):
+        """
+        Save the fitted XGBoost model.
+
+        Parameters
+        ----------
+        path : str or path-like
+            Output model path accepted by XGBoost.
+        """
         self.bdt.save_model(path)
 
     def load(self, path):
+        """
+        Load a fitted XGBoost booster.
+
+        Parameters
+        ----------
+        path : str or path-like
+            Input model path accepted by XGBoost.
+
+        Returns
+        -------
+        BDTCalibration
+            The loaded calibration object.
+        """
         self.bdt = xgb.Booster()
         self.bdt.load_model(path)
         return self

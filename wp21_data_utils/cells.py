@@ -4,6 +4,20 @@ import numpy as np
 
 
 def remove_calo_gaps(cells):
+    """
+    Remove calorimeter cells from sampling regions with known eta gaps.
+
+    Parameters
+    ----------
+    cells : awkward.Array
+        Cell records containing ``cell_x``, ``cell_y``, ``cell_z``, and
+        ``cell_sampling`` fields.
+
+    Returns
+    -------
+    awkward.Array
+        Input cells with gap-region samplings removed.
+    """
     cell_abseta = np.abs(to_3vector(cells).eta)
     psb = (cells.cell_sampling == 0) & (cell_abseta > 1.5)
     eme1 = (cells.cell_sampling == 5) & (cell_abseta < 1.5)
@@ -14,6 +28,19 @@ def remove_calo_gaps(cells):
 
 
 def get_layer(sampling):
+    """
+    Map ATLAS calorimeter sampling indices onto compact layer indices.
+
+    Parameters
+    ----------
+    sampling : awkward.Array or array-like
+        Calorimeter sampling identifiers.
+
+    Returns
+    -------
+    awkward.Array or array-like
+        Layer identifiers using a compact layer numbering.
+    """
     layer_map = {
         0: 0,  # PSB
         1: 1,  # EMB1
@@ -50,6 +77,19 @@ def get_layer(sampling):
 
 
 def get_corrected_eta(cell_vectors):
+    """
+    Apply small eta corrections for selected calorimeter cell layers.
+
+    Parameters
+    ----------
+    cell_vectors : vector.Array
+        Cell position vectors with ``eta`` and ``layer`` components.
+
+    Returns
+    -------
+    awkward.Array
+        Corrected eta values.
+    """
     cell_eta = cell_vectors.eta
     cell_eta = (
         cell_eta
@@ -63,6 +103,22 @@ def get_corrected_eta(cell_vectors):
 
 
 def to_3vector(cells, metre=1e3):
+    """
+    Convert cell Cartesian positions into spatial vector objects.
+
+    Parameters
+    ----------
+    cells : awkward.Array
+        Cell records containing ``cell_x``, ``cell_y``, ``cell_z``, and
+        ``cell_sampling`` fields.
+    metre : float, default=1e3
+        Conversion factor from the input position units to metres.
+
+    Returns
+    -------
+    vector.Array
+        Three-vectors with ``x``, ``y``, ``z``, and compact ``layer`` fields.
+    """
     vectors = vector.zip(
         {
             "x": cells.cell_x / metre,
@@ -75,6 +131,21 @@ def to_3vector(cells, metre=1e3):
 
 
 def to_4momentum(cells, Et_key="cell_et"):
+    """
+    Convert calorimeter cells into massless eta-phi-pT four-vectors.
+
+    Parameters
+    ----------
+    cells : awkward.Array
+        Cell records with position, sampling, and transverse-energy fields.
+    Et_key : str, default="cell_et"
+        Field name containing the transverse energy to use as vector pT.
+
+    Returns
+    -------
+    vector.Array
+        Four-vectors with ``m``, ``pt``, ``eta``, ``phi``, and ``layer``.
+    """
     position = to_3vector(cells)
     cell_eta = get_corrected_eta(position)
     components = {
@@ -89,6 +160,27 @@ def to_4momentum(cells, Et_key="cell_et"):
 
 
 def cells_to_vectors(cells, Et_key="cell_et", central_only=True, remove_gaps=True):
+    """
+    Convert raw calorimeter cell records to analysis-ready cell vectors.
+
+    Parameters
+    ----------
+    cells : awkward.Array
+        Cell records with Cartesian positions, sampling IDs, and transverse
+        energy.
+    Et_key : str, default="cell_et"
+        Field name containing the transverse energy to use as vector pT.
+    central_only : bool, default=True
+        If True, keep only cells in the central detector region.
+    remove_gaps : bool, default=True
+        If True, remove cells from selected calorimeter gap regions before
+        conversion.
+
+    Returns
+    -------
+    vector.Array
+        Per-event massless cell vectors with compact layer labels.
+    """
     if remove_gaps:
         cells = remove_calo_gaps(cells)
 
