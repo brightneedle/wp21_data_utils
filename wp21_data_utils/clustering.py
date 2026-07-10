@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+import awkward as ak
 import fastjet
+import vector
 
 
-def antikt_jets(vectors, min_pt, r=0.4):
+def antikt_jets(
+    vectors: ak.Array | vector.Array, min_pt: float, r: float = 0.4
+) -> ak.Array:
     """
     Cluster input vectors into anti-kt jets with FastJet.
 
