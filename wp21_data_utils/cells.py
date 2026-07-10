@@ -188,7 +188,7 @@ def cells_to_vectors(cells, Et_key="cell_et", central_only=True, remove_gaps=Tru
 
     # Keep only central cells
     if central_only:
-        central = np.abs(cell_vectors) < 2.5
+        central = np.abs(cell_vectors.eta) < 2.5
         cell_vectors = cell_vectors[central]
 
     return cell_vectors
